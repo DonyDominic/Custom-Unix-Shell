@@ -1,0 +1,1 @@
+int execute_simple_cmd(Command_Node *node);
