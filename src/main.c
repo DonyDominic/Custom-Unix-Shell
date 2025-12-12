@@ -3,6 +3,8 @@
 int main()
 {
 
+    SystemInfo info;
+    get_system_info(&info);
     char text_buffer[1024]; // store the cmds
 
     ssize_t bytes_read; // total lenght of the cmds
@@ -10,7 +12,8 @@ int main()
 
     while (running)
     {
-        write(STDOUT_FILENO, "$ ", 2);
+        // write(STDOUT_FILENO, "$ ", 2);
+        display_custom_prompt(&info);
 
         bytes_read = read(STDIN_FILENO, text_buffer, sizeof(text_buffer) - 1);
 
@@ -40,13 +43,10 @@ int main()
 
         else
         {
-            // Token *token_list = tokenizer(text_buffer);
-            // print_token_list(token_list);
-            char **token_buffer = malloc(bytes_read);
-            size_t n_tokens = parse_by_delm(text_buffer, DELIMATOR, token_buffer);
-            // print_token_buffer(token_buffer,n_tokens);
-            Command_Node *node = simple_cmd(token_buffer, n_tokens);
-            execute_simple_cmd(node);
+
+           Token** tokens = lexer(text_buffer);
+           print_tokens(tokens); 
+
         }
     }
     return 0;

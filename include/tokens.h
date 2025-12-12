@@ -2,9 +2,9 @@
 // operator token type wrt priority (lowest->highest)
 typedef enum{
     // 1
-    TOKEN_DEL_AND,      // &&
-    TOKEN_DEL_OR,       // ||
-    TOKEN_DEL_SEQUENCE, // ;
+    TOKEN_AND,      // &&
+    TOKEN_OR,       // ||
+    TOKEN_SEMICOLON, // ;
     // 2
     TOKEN_PIPE,         // |
     // 3
@@ -18,35 +18,11 @@ typedef enum{
     TOKEN_END,
 } Token_type;
 
-struct cmd_node;
+typedef struct {
+    Token_type type;
+    char *value;
+} Token;
 
-typedef struct redir
-{
-    char* filename;
-    Token_type type; // REDIR_IN, REDIR_OUT, etc.
-} Redir;
-
-typedef struct cmd_node
-{
-    Token_type type; 
-
-    // Used if type is an OPERATOR 
-    // The recursive result of parsing the left and right halves.
-    struct cmd_node* left; 
-    struct cmd_node* right;
-
-    // Used if type is TOKEN_CMD (The Leaf Node)
-    // The actual arguments for execve(). A NULL-terminated array of strings.
-    char** argv; 
-    int argc;
-
-    // Redirections associated with this command (e.g., cmd < file > out)
-    Redir* redirs;
-    int num_redirs;
-    
-    // Flag for background execution (cmd &)
-    int background; 
-    
-} Command_Node;
-
-Command_Node* simple_cmd(char** token_buffer,int n_tokens);
+Token **lexer(const char *input);
+void free_tokens(Token** tokens);
+void print_tokens(Token** tokens);

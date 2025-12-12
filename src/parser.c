@@ -26,27 +26,4 @@ parser.c
 // return tree_node
 
 
-// basic for now
-int parse_by_delm(char *data, char *delm, char **token_buffer)
-{
-    char *ptr;
-    int n_tok = 0;
-    char *token = __strtok_r(data, delm, &ptr);
-    while (token != NULL)
-    {
-        // printf("%s\n", token);
-        token_buffer[n_tok] = strdup(token);
 
-        n_tok++;
-        token = __strtok_r(NULL, delm, &ptr);
-    }
-    return n_tok;
-}
-
-void print_token_buffer(char** token_buffer,size_t n_tokens){
-    for (size_t i = 0; i < n_tokens; i++)
-    {
-        printf("%s\n",token_buffer[i]);
-    }
-    
-}

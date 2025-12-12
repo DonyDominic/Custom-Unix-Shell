@@ -7,10 +7,14 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
+#include <sys/types.h>
+#include <pwd.h>
+#include <ctype.h>
 
-#include "parser.h"
+// #include "parser.h"
 #include "tokens.h"
-#include "exec.h"
+// #include "exec.h"
+#include "utils.h"
 
 
 // booleans
