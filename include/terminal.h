@@ -11,20 +11,16 @@
 #include <pwd.h>
 #include <ctype.h>
 
-// #include "parser.h"
-#include "tokens.h"
-// #include "exec.h"
 #include "utils.h"
+#include "tokens.h"
+#include "parser.h"
+#include "exec.h"
 
 
 // booleans
 #define bool int
 #define true 1
 #define false 0
-
-// parser 
-#define DELIMATOR " "
-#define DELIMATORS = {}
 
 
 #endif // TERMINAL

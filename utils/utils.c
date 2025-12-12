@@ -4,6 +4,11 @@
 #define PATH_SEP '/'
 #define PATH_MAX 4096 /* # chars in a path name including nul */
 
+/**
+ * @brief Fetchs user information from the user database
+ * @param info A pointer to the SystemInfo struct containing current system data.
+ * @return 0 on success, -1 on failure.
+ */
 int get_system_info(SystemInfo *info)
 {
     if (info == NULL)
@@ -36,17 +41,17 @@ int get_system_info(SystemInfo *info)
         perror("Error retrieving CWD");
         return -1;
     }
-    // printf("POSIX CWD: %s\n", full_path);
 
+    /*Extract `cwd` from `full_path`*/
     // find last `/` in full_path
     char *last_slash = strrchr(full_path, PATH_SEP);
-    // 3. Extract the component
+    // Extract the dir name
     if (last_slash != NULL)
     {
         // If the path is "/", last_slash points to the start of the string.
         // If the path is "/home/user", last_slash points to the '/' before "user".
 
-        // We move one character past the last '/' to get the directory name.
+        // move one character past the last '/' to get the directory name.
         char *directory_name = last_slash + 1;
 
         // Handle the special case where CWD is root directory ("/").
@@ -58,7 +63,7 @@ int get_system_info(SystemInfo *info)
         }
         else
         {
-            // This handles all other paths, including those ending in / (though getcwd usually removes trailing /)
+            // dir_name is saved
             strncpy(info->dir_name, directory_name, sizeof(info->dir_name) - 1);
         }
     }
@@ -69,12 +74,12 @@ int get_system_info(SystemInfo *info)
     return 0;
 }
 
-// Max length for a prompt string. Adjust as needed, 512 is usually safe.
+// Max length for a prompt string.
 #define PROMPT_BUFFER_SIZE 512 
 
 /**
- * @brief Generates and writes the custom shell prompt to STDOUT.
- * @param info A pointer to the SystemInfo struct containing current system data.
+ * @brief writes the custom shell prompt to STDOUT.
+ * @param info a pointer to the SystemInfo struct containing current system data.
  * @return 0 on success, -1 on failure.
  */
 int display_custom_prompt(SystemInfo *info) {
@@ -82,15 +87,12 @@ int display_custom_prompt(SystemInfo *info) {
     int len;
 
     // 1. Update system information (CWD might have changed since the last command)
-    // We only call get_system_info here, which is assumed to refresh all fields.
     if (get_system_info(info) != 0) {
         // Fallback prompt if info retrieval fails
         write(STDOUT_FILENO, "shell$ ", 7);
         return -1;
     }
     
-    // 2. Format the string using snprintf to prevent buffer overflow.
-    // Format: [username@pcname dir_name]$ 
     
     // snprintf returns the number of characters *that would have been* written, 
     // excluding the null terminator.
@@ -98,15 +100,15 @@ int display_custom_prompt(SystemInfo *info) {
         prompt_buffer, 
         PROMPT_BUFFER_SIZE,
         "[%s@%s %s]$  ",
-        info->username,         // e.g., dony
-        info->pc_name,          // e.g., archlinux
-        info->dir_name     // e.g., utils (the last directory name)
+        info->username,         
+        info->pc_name,          
+        info->dir_name     
     );
     
     // Check if the prompt was truncated (len >= PROMPT_BUFFER_SIZE)
     if (len >= PROMPT_BUFFER_SIZE || len < 0) {
         // If truncation or error occurs, write a simple fallback prompt
-        write(STDOUT_FILENO, "prompt_fail$ ", 13);
+        write(STDOUT_FILENO, "shell$ ", 8);
         return -1;
     }
 
