@@ -1,15 +1,16 @@
-/* gcc src/main.c src/parser.c src/tokens.c src/exec.c -Iinclude -o main && ./main */
+/*gcc src/main.c src/tokens.c src/parser.c src/exec.c utils/utils.c -Iinclude -Iutils -o main && ./main*/
 #include "terminal.h"
 int main()
 {
 
     SystemInfo info;
 
-    if(get_system_info(&info) == -1){
+    if (get_system_info(&info) == -1)
+    {
         perror("Failed to retrive user database");
     }
     char text_buffer[1024]; // store the cmds
-    int status; // program status
+    int status;             // program status
 
     ssize_t bytes_read; // total lenght of the cmds
     bool running = true;
@@ -17,7 +18,8 @@ int main()
     while (running)
     {
         // write(STDOUT_FILENO, "$ ", 2);
-        if(display_custom_prompt(&info) == -1){
+        if (display_custom_prompt(&info) == -1)
+        {
             perror("Failed to display user info");
         }
 
@@ -58,7 +60,7 @@ int main()
             cmd_node *tree = parse_tokens(tokens, 0, token_count - 1);
             free_tokens(tokens);
             status = execute_tree(tree);
-            // free_tree(tree);
+            free_node(tree);
         }
     }
     return status;

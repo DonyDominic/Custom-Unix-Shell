@@ -2,40 +2,8 @@
 
 cmd_node *parse_tokens(Token **tokens, int start, int end);
 cmd_node *create_simple_cmd_node(Token **tokens, int start, int end);
-
-/**
- * @brief create a node with sequence (;) operator as parent.
- *
- * @param tokens   the token list
- * @param start   start index of the token
- * @param split_index   the index at which the node to be split
- * @param end  end index of the token
- *
- * @return `cmd_node*` on success and NULL on error
- */
-cmd_node *create_sequence_node(Token **tokens, int start, int split_index, int end)
-{
-    cmd_node *node = (cmd_node *)malloc(sizeof(cmd_node));
-
-    if (!node)
-    {
-        perror("malloc : node(*cmd_node)\n");
-        return NULL;
-    }
-    // assigning `;` as the parent
-    node->type = tokens[split_index]->type;
-
-    // `;` has no meta-data
-    node->argv = NULL;
-    node->input_file = NULL;
-    node->output_file = NULL;
-
-    // recursively parsing left and right child
-    node->left = parse_tokens(tokens, start, split_index - 1);
-    node->right = parse_tokens(tokens, split_index + 1, end);
-
-    return node;
-}
+cmd_node *create_op_node(Token **tokens, int start, int split_index, int end);
+int free_node(cmd_node *node);
 
 /**
  * @brief  recursively scans tokens backwads and append them into `tree` nodes.
@@ -49,16 +17,20 @@ cmd_node *create_sequence_node(Token **tokens, int start, int split_index, int e
 cmd_node *parse_tokens(Token **tokens, int start, int end)
 {
 
+    if (start > end)
+        return NULL;
     // scan backwards
 
-    for (size_t i = end; i > start; i--)
+    for (int i = end; i >= start; i--)
     {
-        if (tokens[i]->type == TOKEN_SEMICOLON)
+
+        if (tokens[i]->type == TOKEN_SEMICOLON | tokens[i]->type == TOKEN_PIPE)
         {
-            cmd_node *node = create_sequence_node(tokens, start, i, end);
+            cmd_node *node = create_op_node(tokens, start, i, end);
             return node;
         }
     }
+
     return create_simple_cmd_node(tokens, start, end);
 }
 
@@ -68,11 +40,13 @@ cmd_node *parse_tokens(Token **tokens, int start, int end)
  * @param tokens  the token list
  * @param start  start index of the token lsit
  * @param end  end index of the token list
- * 
+ *
  * @return `cmd_node*` on success and NULL on error.
  */
 cmd_node *create_simple_cmd_node(Token **tokens, int start, int end)
 {
+    if (start > end)
+        return NULL;
     cmd_node *node = (cmd_node *)malloc(sizeof(cmd_node));
     if (!node)
     {
@@ -97,4 +71,57 @@ cmd_node *create_simple_cmd_node(Token **tokens, int start, int end)
     }
     node->argv[num_args] = NULL;
     return node;
+}
+
+/**
+ * @brief create a node with operator as parent.
+ *
+ * @param tokens   the token list
+ * @param start   start index of the token
+ * @param split_index   the index at which the node to be split
+ * @param end  end index of the token
+ *
+ * @return `cmd_node*` on success and NULL on error
+ */
+cmd_node *create_op_node(Token **tokens, int start, int split_index, int end)
+{
+    cmd_node *node = (cmd_node *)malloc(sizeof(cmd_node));
+
+    if (!node)
+    {
+        perror("malloc : node(*cmd_node)\n");
+        return NULL;
+    }
+    // assigning `;` as the parent
+    node->type = tokens[split_index]->type;
+
+    // `;` has no meta-data
+    node->argv = NULL;
+
+    // recursively parsing left and right child
+    node->left = parse_tokens(tokens, start, split_index - 1);
+    node->right = parse_tokens(tokens, split_index + 1, end);
+
+    return node;
+}
+
+int free_node(cmd_node *node)
+{
+    if (node == NULL)
+        return 0;
+    if (node->left != NULL)
+        free_node(node->left);
+    if (node->right != NULL)
+        free_node(node->right);
+    if (node->type == NODE_CMD && node->argv != NULL)
+    {
+        for (int i = 0; node->argv[i] != NULL; i++)
+        {
+            free(node->argv[i]);
+        }
+        free(node->argv);
+    }
+
+    free(node);
+    return 0;
 }

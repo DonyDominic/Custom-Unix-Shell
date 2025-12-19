@@ -7,6 +7,8 @@
 */
 int execute_simple_cmd(cmd_node *node)
 {
+    if (node == NULL)
+        return 0;
     __pid_t pid = fork();
     int status;
     // child
@@ -36,6 +38,66 @@ int execute_simple_cmd(cmd_node *node)
     }
 }
 
+int execute_pipe(cmd_node *node)
+{
+    int pipe_fds[2];
+    int status_l, status_r;
+    if (pipe(pipe_fds) == -1)
+    {
+        perror("pipe");
+        return -1;
+    }
+    __pid_t pid_l = fork();
+    // left child
+    if (pid_l == -1)
+    {
+        perror("FORK");
+        return -1;
+    }
+    else if (pid_l == 0)
+    {
+        if (dup2(pipe_fds[1], STDOUT_FILENO) == -1)
+        {
+            perror("dup2");
+            return -1;
+        }
+        close(pipe_fds[0]);
+        close(pipe_fds[1]);
+        status_l = execute_tree(node->left);
+        exit(status_l);
+    }
+
+    __pid_t pid_r = fork();
+    // right child
+    if (pid_r == -1)
+    {
+        perror("FORK");
+        return -1;
+    }
+    else if (pid_r == 0)
+    {
+        if (dup2(pipe_fds[0], STDIN_FILENO) == -1)
+        {
+            perror("dup2");
+            return -1;
+        }
+        close(pipe_fds[0]);
+        close(pipe_fds[1]);
+        status_r = execute_tree(node->right);
+        exit(status_r);
+    }
+
+    // parent
+    // Parent closes BOTH ends so children get EOF
+    close(pipe_fds[0]);
+    close(pipe_fds[1]);
+
+    // Parent waits for both children
+    waitpid(pid_l, &status_l, 0);
+    waitpid(pid_r, &status_r, 0);
+
+    return WEXITSTATUS(status_r);
+}
 /**
  * @brief exceute a `cmd_node` tree recursively
  * @param node  `cmd_node`
@@ -43,6 +105,8 @@ int execute_simple_cmd(cmd_node *node)
  */
 int execute_tree(cmd_node *node)
 {
+    if (node == NULL)
+        return 0;
 
     int status = 0;
     switch (node->type)
@@ -51,6 +115,8 @@ int execute_tree(cmd_node *node)
         status = execute_tree(node->left);
         return execute_tree(node->right);
 
+    case NODE_PIPE:
+        return execute_pipe(node);
     case NODE_CMD:
         return execute_simple_cmd(node);
     default:
@@ -60,3 +126,4 @@ int execute_tree(cmd_node *node)
 
     return 0;
 }
+
