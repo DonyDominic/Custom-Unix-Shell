@@ -1,5 +1,6 @@
 #include "terminal.h"
 #include <sys/wait.h>
+#include <fcntl.h>
 /**
     @brief  execute an `simple cmd `
     @param node  a `cmd` node
@@ -23,7 +24,7 @@ int execute_simple_cmd(cmd_node *node)
         if (execvp(node->argv[0], node->argv) == -1)
         {
             perror(node->argv[0]);
-            return -1;
+            exit(-1);
         }
     }
 
@@ -79,7 +80,7 @@ int execute_pipe(cmd_node *node)
         if (dup2(pipe_fds[0], STDIN_FILENO) == -1)
         {
             perror("dup2");
-            return -1;
+            exit(-1);
         }
         close(pipe_fds[0]);
         close(pipe_fds[1]);
@@ -98,6 +99,106 @@ int execute_pipe(cmd_node *node)
 
     return WEXITSTATUS(status_r);
 }
+int execute_redirin(cmd_node *node)
+{
+    int status = 0;
+    int fd = open(node->right->argv[0], O_RDONLY, 0);
+    if (fd < 0)
+    {
+        perror("open");
+        return -1;
+    }
+    __pid_t pid = fork();
+    if (pid == -1)
+    {
+        perror("FORK");
+        return -1;
+    }
+    else if (pid == 0)
+    {
+        if (dup2(fd, STDIN_FILENO) == -1)
+        {
+            perror("dup2");
+            exit(-1);
+        }
+        close(fd);
+
+        exit(execute_tree(node->left));
+    }
+    else
+    {
+        close(fd);
+        waitpid(pid, &status, 0);
+        return WEXITSTATUS(status);
+    }
+}
+
+int execute_redirout(cmd_node *node)
+{
+    int status = 0;
+    int fd = open(node->right->argv[0], O_WRONLY | O_CREAT | O_TRUNC, 0644);
+    if (fd < 0)
+    {
+        perror("open");
+        return -1;
+    }
+    __pid_t pid = fork();
+    if (pid == -1)
+    {
+        perror("FORK");
+        return -1;
+    }
+    else if (pid == 0)
+    {
+        if (dup2(fd, STDOUT_FILENO) == -1)
+        {
+            perror("dup2");
+            exit(-1);
+        }
+        close(fd);
+        exit(execute_tree(node->left));
+    }
+    else
+    {
+        close(fd);
+        waitpid(pid, &status, 0);
+        return WEXITSTATUS(status);
+    }
+}
+
+int execute_redirappend(cmd_node *node)
+{
+    int status = 0;
+    int fd = open(node->right->argv[0], O_WRONLY | O_CREAT | O_APPEND, 0644);
+    if (fd < 0)
+    {
+        perror("open");
+        return -1;
+    }
+    __pid_t pid = fork();
+    if (pid == -1)
+    {
+        perror("FORK");
+        return -1;
+    }
+    else if (pid == 0)
+    {
+        if (dup2(fd, STDOUT_FILENO) == -1)
+        {
+            perror("dup2");
+            exit(-1);
+        }
+        close(fd);
+        exit(execute_tree(node->left));
+    }
+    else
+    {
+        close(fd);
+        waitpid(pid, &status, 0);
+        return WEXITSTATUS(status);
+    }
+}
+
 /**
  * @brief exceute a `cmd_node` tree recursively
  * @param node  `cmd_node`
@@ -112,11 +213,36 @@ int execute_tree(cmd_node *node)
     switch (node->type)
     {
     case NODE_SEMICOLON:
+        // do left and right, independently
         status = execute_tree(node->left);
         return execute_tree(node->right);
-
+    case NODE_AND:
+        // do left and if it succeeds do right
+        status = execute_tree(node->left);
+        if (status == 0)
+        {
+            return execute_tree(node->right);
+        }
+        else
+        {
+            return status;
+        }
+    case NODE_OR:
+        // do left, and if it fails only do right
+        status = execute_tree(node->left);
+        if (status != 0)
+        {
+            return execute_tree(node->right);
+        }
+        return status;
     case NODE_PIPE:
         return execute_pipe(node);
+    case NODE_REDIR_IN:
+        return execute_redirin(node);
+    case NODE_REDIR_OUT:
+        return execute_redirout(node);
+    case NODE_REDIR_APPEND:
+        return execute_redirappend(node);
     case NODE_CMD:
         return execute_simple_cmd(node);
     default:
@@ -126,4 +252,3 @@ int execute_tree(cmd_node *node)
 
     return 0;
 }
-

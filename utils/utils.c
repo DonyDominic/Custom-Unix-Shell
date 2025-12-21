@@ -26,7 +26,6 @@ int get_system_info(SystemInfo *info)
         strncpy(info->username, "unknown_user", sizeof(info->username) - 1);
     }
 
-
     // 2. PC Name (Hostname)
     if (gethostname(info->pc_name, sizeof(info->pc_name)) != 0)
     {
@@ -75,38 +74,39 @@ int get_system_info(SystemInfo *info)
 }
 
 // Max length for a prompt string.
-#define PROMPT_BUFFER_SIZE 512 
+#define PROMPT_BUFFER_SIZE 512
 
 /**
  * @brief writes the custom shell prompt to STDOUT.
  * @param info a pointer to the SystemInfo struct containing current system data.
  * @return 0 on success, -1 on failure.
  */
-int display_custom_prompt(SystemInfo *info) {
+int display_custom_prompt(SystemInfo *info)
+{
     char prompt_buffer[PROMPT_BUFFER_SIZE];
     int len;
 
     // 1. Update system information (CWD might have changed since the last command)
-    if (get_system_info(info) != 0) {
+    if (get_system_info(info) != 0)
+    {
         // Fallback prompt if info retrieval fails
         write(STDOUT_FILENO, "shell$ ", 7);
         return -1;
     }
-    
-    
-    // snprintf returns the number of characters *that would have been* written, 
+
+    // snprintf returns the number of characters *that would have been* written,
     // excluding the null terminator.
     len = snprintf(
-        prompt_buffer, 
+        prompt_buffer,
         PROMPT_BUFFER_SIZE,
         "[%s@%s %s]$  ",
-        info->username,         
-        info->pc_name,          
-        info->dir_name     
-    );
-    
+        info->username,
+        info->pc_name,
+        info->dir_name);
+
     // Check if the prompt was truncated (len >= PROMPT_BUFFER_SIZE)
-    if (len >= PROMPT_BUFFER_SIZE || len < 0) {
+    if (len >= PROMPT_BUFFER_SIZE || len < 0)
+    {
         // If truncation or error occurs, write a simple fallback prompt
         write(STDOUT_FILENO, "shell$ ", 8);
         return -1;

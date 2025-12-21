@@ -16,21 +16,50 @@ int free_node(cmd_node *node);
  */
 cmd_node *parse_tokens(Token **tokens, int start, int end)
 {
-
     if (start > end)
         return NULL;
-    // scan backwards
 
-    for (int i = end; i >= start; i--)
+    int i;
+
+    // Scan for Command Separators (Lowest Priority) 
+    for (i = end; i >= start; i--)
     {
-
-        if (tokens[i]->type == TOKEN_SEMICOLON | tokens[i]->type == TOKEN_PIPE)
+        if (tokens[i]->type == TOKEN_SEMICOLON || tokens[i]->type == TOKEN_BACKGROUND)
         {
-            cmd_node *node = create_op_node(tokens, start, i, end);
-            return node;
+            return create_op_node(tokens, start, i, end);
         }
     }
 
+    // Scan for Logical Operators 
+    for (i = end; i >= start; i--)
+    {
+        if (tokens[i]->type == TOKEN_AND || tokens[i]->type == TOKEN_OR)
+        {
+            return create_op_node(tokens, start, i, end);
+        }
+    }
+
+    // Scan for Pipes 
+    for (i = end; i >= start; i--)
+    {
+        if (tokens[i]->type == TOKEN_PIPE)
+        {
+            return create_op_node(tokens, start, i, end);
+        }
+    }
+
+    // Scan for Redirections (Highest Priority) 
+    for (i = end; i >= start; i--)
+    {
+        if (tokens[i]->type == TOKEN_REDIR_IN || 
+            tokens[i]->type == TOKEN_REDIR_OUT || 
+            tokens[i]->type == TOKEN_REDIR_APPEND)
+        {
+            return create_op_node(tokens, start, i, end);
+        }
+    }
+
+    // (BASE CASE) simple command
     return create_simple_cmd_node(tokens, start, end);
 }
 
@@ -92,7 +121,7 @@ cmd_node *create_op_node(Token **tokens, int start, int split_index, int end)
         perror("malloc : node(*cmd_node)\n");
         return NULL;
     }
-    // assigning `;` as the parent
+    // assigning `operator` as the parent
     node->type = tokens[split_index]->type;
 
     // `;` has no meta-data
