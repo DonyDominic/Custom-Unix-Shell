@@ -10,6 +10,8 @@
 #include <sys/types.h>
 #include <pwd.h>
 #include <ctype.h>
+#include <sys/wait.h>
+#include <fcntl.h>
 
 #include "utils.h"
 #include "tokens.h"

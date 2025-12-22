@@ -5,6 +5,33 @@
 // Maximum length of any single word/token
 #define MAX_TOKEN_LEN 64
 
+OpInfo get_op_info(const char *p);
+void flush_buffer(Token **tokens, int *token_count, char *buffer, int *buff_len);
+void handle_quoted_content(const char **p, char *buffer, int *buff_len);
+Token *create_token(Token_type type, const char *start, int length);
+Token **lexer(const char *input, int *token_count);
+void free_tokens(Token **tokens);
+
+/**
+ * @brief helper function for indentifing operator's.
+ * @param p character to compare
+ * 
+ * @return OpInfo
+ */
+OpInfo get_op_info(const char *p) {
+    if (*p == '|' && *(p+1) == '|') return (OpInfo){TOKEN_OR, 2};
+    if (*p == '&' && *(p+1) == '&') return (OpInfo){TOKEN_AND, 2};
+    if (*p == '>' && *(p+1) == '>') return (OpInfo){TOKEN_REDIR_APPEND, 2};
+    
+    if (*p == '|') return (OpInfo){TOKEN_PIPE, 1};
+    if (*p == '&') return (OpInfo){TOKEN_BACKGROUND, 1};
+    if (*p == ';') return (OpInfo){TOKEN_SEMICOLON, 1};
+    if (*p == '<') return (OpInfo){TOKEN_REDIR_IN, 1};
+    if (*p == '>') return (OpInfo){TOKEN_REDIR_OUT, 1};
+    
+    return (OpInfo){-1, 0};
+}
+
 /**
  * @brief to create a new `token`
  *
@@ -34,14 +61,65 @@ Token *create_token(Token_type type, const char *start, int length)
     return new_token;
 }
 
-/** 
- * @brief convert`input` buffer into a `token` list
+/**
+ * @brief create a token with the current buffer.
  * 
+ * @param tokens list of tokens
+ * @param token_count lenght of token list
+ * @param buffer temporary string buffer
+ * @param buff_len lenght of the buffer
+ */
+void flush_buffer(Token **tokens, int *token_count, char *buffer, int *buff_len) {
+    // Only create a token if there is actually something in the buffer
+    if (*buff_len > 0) {
+        buffer[*buff_len] = '\0'; // Always null-terminate before creating token
+        
+        // Use your existing create_token function
+        tokens[*token_count] = create_token(TOKEN_CMD, buffer, *buff_len);
+        
+        if (tokens[*token_count] != NULL) {
+            (*token_count)++;
+        }
+        
+        *buff_len = 0; // Reset index for the next word
+    }
+}
+
+/**
+ * @brief eagar scan string from the input.
+ * 
+ * @param p quote in input
+ * @param buffer temporary string buffer
+ * @param buff_len lenght of the buffer
+ */
+void handle_quoted_content(const char **p, char *buffer, int *buff_len) {
+    char quote_type = **p; // Store if it's ' or "
+    (*p)++; // Skip the opening quote
+
+    while (**p != '\0' && **p != quote_type) {
+        if (*buff_len < MAX_TOKEN_LEN - 1) {
+            buffer[*buff_len] = **p;
+            (*buff_len)++;
+        }
+        (*p)++;
+    }
+
+    if (**p == quote_type) {
+        (*p)++; // Skip the closing quote
+    } else {
+        fprintf(stderr, "Closing quote %c not found!\n", quote_type);
+    }
+}
+
+/**
+ * @brief convert`input` buffer into a `token` list
+ *
  * @param input input buffer
  * @param token_count no of `tokens` found
- * 
+ *
  * @return `tokens` on success and NULL on error
  */
+
 Token **lexer(const char *input, int *token_count)
 {
     Token **tokens = (Token **)malloc(MAX_TOKENS * sizeof(Token *));
@@ -52,83 +130,49 @@ Token **lexer(const char *input, int *token_count)
     }
 
     const char *p = input;
+    char *buffer = malloc(MAX_TOKEN_LEN * sizeof(char));
+    if(!buffer){
+        perror("malloc : buffer(char*)");
+        return NULL;
+    }
+    state state = IS_SPACE;
+    int buff_len = 0;
 
     while (*p != '\0')
     {
-        while (isspace(*p))
-            p++; // skip whitespaces
-
-        if (*p == '\0')
-            break;
-
-        if (*p == '&' && *(p + 1) == '&')
+        // Quotes (Eager)
+        if (*p == '\'' || *p == '\"')
         {
-            tokens[(*token_count)++] = create_token(TOKEN_AND, p, 2); // copies addr p and p+1
-            p += 2;
-            continue;
+            handle_quoted_content(&p, buffer, &buff_len);
+            continue; 
         }
-        if (*p == '|' && *(p + 1) == '|')
+
+        OpInfo op = get_op_info(p);
+        if (op.type != -1)
         {
-            tokens[(*token_count)++] = create_token(TOKEN_OR, p, 2);
-            p += 2;
-            continue;
-        }
-        if (*p == '>' && *(p + 1) == '>')
-        {
-            tokens[(*token_count)++] = create_token(TOKEN_REDIR_APPEND, p, 2);
-            p += 2;
+            flush_buffer(tokens, token_count, buffer, &buff_len);
+            tokens[(*token_count)++] = create_token(op.type, p, op.len);
+            p += op.len;
+            state = IS_SPACE;
             continue;
         }
 
-        // Pipe |
-        if (*p == '|')
+        if (isspace(*p))
         {
-            tokens[(*token_count)++] = create_token(TOKEN_PIPE, p, 1);
-            p += 1;
-            continue;
-        }
-        // Sequence ;
-        if (*p == ';')
-        {
-            tokens[(*token_count)++] = create_token(TOKEN_SEMICOLON, p, 1);
-            p += 1;
-            continue;
-        }
-        // Background &
-        if (*p == '&')
-        {
-            tokens[(*token_count)++] = create_token(TOKEN_BACKGROUND, p, 1);
-            p += 1;
-            continue;
-        }
-        // Redirection Write >
-        if (*p == '>')
-        {
-            tokens[(*token_count)++] = create_token(TOKEN_REDIR_OUT, p, 1);
-            p += 1;
-            continue;
-        }
-        // Redirection Read <
-        if (*p == '<')
-        {
-            tokens[(*token_count)++] = create_token(TOKEN_REDIR_IN, p, 1);
-            p += 1;
-            continue;
-        }
-
-        // WORD SCANNER : takes a word and scans until its end and append it in the word buffer
-
-        const char *start = p;
-        while (*p != '\0' && !isspace(*p) &&
-               *p != '|' && *p != '&' && *p != ';' && *p != '>' && *p != '<')
-        {
+            flush_buffer(tokens, token_count, buffer, &buff_len);
+            state = IS_SPACE;
             p++;
+            continue;
         }
-        // We found the end of the word (at p). The word started at start.
-        tokens[(*token_count)++] = create_token(TOKEN_CMD, start, p - start);
-    }
-    tokens[*token_count] = create_token(TOKEN_END, "", 0);
 
+        // Default: It's a word character
+        buffer[buff_len++] = *p;
+        state = IS_WORD;
+        p++;
+    }
+    flush_buffer(tokens,token_count,buffer,&buff_len);
+    tokens[*token_count] = create_token(TOKEN_END,"",0);
+    free(buffer);
     return tokens;
 }
 
@@ -157,21 +201,3 @@ void free_tokens(Token **tokens)
     }
 }
 
-/**
- * @brief  print the `Token` list.
- */
-void print_tokens(Token **tokens)
-{
-    if (tokens)
-    {
-        ssize_t i = 0;
-        for (i = 0; tokens[i]->type != TOKEN_END; i++)
-        {
-            printf("%s\n", tokens[i]->value);
-        }
-    }
-    else
-    {
-        printf("No tokens found\n");
-    }
-}

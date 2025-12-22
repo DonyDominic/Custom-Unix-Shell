@@ -1,6 +1,13 @@
 #include "terminal.h"
-#include <sys/wait.h>
-#include <fcntl.h>
+
+
+int execute_simple_cmd(cmd_node *node);
+int execute_pipe(cmd_node *node);
+int execute_redirin(cmd_node *node);
+int execute_redirout(cmd_node *node);
+int execute_redirappend(cmd_node *node);
+int execute_tree(cmd_node *node);
+
 /**
     @brief  execute an `simple cmd `
     @param node  a `cmd` node
@@ -39,6 +46,12 @@ int execute_simple_cmd(cmd_node *node)
     }
 }
 
+/**
+ * @brief Excecute pipe command
+ * @param node the pipe node
+ * 
+ * @return 0 on success and -1 on err
+ */
 int execute_pipe(cmd_node *node)
 {
     int pipe_fds[2];
@@ -99,9 +112,19 @@ int execute_pipe(cmd_node *node)
 
     return WEXITSTATUS(status_r);
 }
+/**
+ * @brief Execute redirection in operator
+ * @param node the redirection in node
+ * @return 0 on success and -1 on err
+ */
 int execute_redirin(cmd_node *node)
 {
     int status = 0;
+    if (!node->right || !node->right->argv || !node->right->argv[0])
+    {
+        fprintf(stderr, "syntax error: expected file after redirection\n");
+        return -1;
+    }
     int fd = open(node->right->argv[0], O_RDONLY, 0);
     if (fd < 0)
     {
@@ -133,9 +156,19 @@ int execute_redirin(cmd_node *node)
     }
 }
 
+/**
+ * @brief Execute redirection out operator
+ * @param node the redirection out node
+ * @return 0 on success and -1 on err
+ */
 int execute_redirout(cmd_node *node)
 {
     int status = 0;
+    if (!node->right || !node->right->argv || !node->right->argv[0])
+    {
+        fprintf(stderr, "syntax error: expected file after redirection\n");
+        return -1;
+    }
     int fd = open(node->right->argv[0], O_WRONLY | O_CREAT | O_TRUNC, 0644);
     if (fd < 0)
     {
@@ -166,9 +199,19 @@ int execute_redirout(cmd_node *node)
     }
 }
 
+/**
+ * @brief Execute redirection append operator
+ * @param node the redirection append node
+ * @return 0 on success and -1 on err
+ */
 int execute_redirappend(cmd_node *node)
 {
     int status = 0;
+    if (!node->right || !node->right->argv || !node->right->argv[0])
+    {
+        fprintf(stderr, "syntax error: expected file after redirection\n");
+        return -1;
+    }
     int fd = open(node->right->argv[0], O_WRONLY | O_CREAT | O_APPEND, 0644);
     if (fd < 0)
     {

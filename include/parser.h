@@ -30,18 +30,11 @@ typedef struct cmd_node
 
     struct cmd_node* left; // left child
     struct cmd_node* right; // right child
-
-    // for simple cmd only
-    int input_file; // source file
-    int output_file; // destination file
-    int output_mode; // update or truncate
-    // int argc;
     char** argv; // `cmd` arguments (if any) 
     
 }cmd_node;
 
 cmd_node* parse_tokens(Token** tokens,int start,int end);
-cmd_node* create_sequence_node(Token** tokens,int start,int split_index,int end);
 int free_node(cmd_node* node);
 
 

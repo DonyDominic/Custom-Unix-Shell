@@ -1,5 +1,10 @@
-
-// operator token type wrt priority (lowest->highest)
+/**
+ * @brief states of the tokenizer. 
+ */
+typedef enum{
+    IS_SPACE,
+    IS_WORD
+} state;
 
 /**
  * @brief a collection of vaild token types.
@@ -22,6 +27,15 @@ typedef enum{
 } Token_type;
 
 /**
+ * helper struct for mapping a operator(char) to `Token_type`
+ */
+typedef struct {
+    Token_type type;
+    int len;
+} OpInfo;
+
+
+/**
  * @brief `token`- `cmd` pair used in `lexer`
  */
 typedef struct {
@@ -32,4 +46,3 @@ typedef struct {
 
 Token **lexer(const char *input,int* token_count);
 void free_tokens(Token** tokens);
-void print_tokens(Token** tokens);

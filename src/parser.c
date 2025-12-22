@@ -21,7 +21,7 @@ cmd_node *parse_tokens(Token **tokens, int start, int end)
 
     int i;
 
-    // Scan for Command Separators (Lowest Priority) 
+    // Scan for Command Separators (Lowest Priority)
     for (i = end; i >= start; i--)
     {
         if (tokens[i]->type == TOKEN_SEMICOLON || tokens[i]->type == TOKEN_BACKGROUND)
@@ -30,7 +30,7 @@ cmd_node *parse_tokens(Token **tokens, int start, int end)
         }
     }
 
-    // Scan for Logical Operators 
+    // Scan for Logical Operators
     for (i = end; i >= start; i--)
     {
         if (tokens[i]->type == TOKEN_AND || tokens[i]->type == TOKEN_OR)
@@ -39,7 +39,7 @@ cmd_node *parse_tokens(Token **tokens, int start, int end)
         }
     }
 
-    // Scan for Pipes 
+    // Scan for Pipes
     for (i = end; i >= start; i--)
     {
         if (tokens[i]->type == TOKEN_PIPE)
@@ -48,11 +48,11 @@ cmd_node *parse_tokens(Token **tokens, int start, int end)
         }
     }
 
-    // Scan for Redirections (Highest Priority) 
+    // Scan for Redirections (Highest Priority)
     for (i = end; i >= start; i--)
     {
-        if (tokens[i]->type == TOKEN_REDIR_IN || 
-            tokens[i]->type == TOKEN_REDIR_OUT || 
+        if (tokens[i]->type == TOKEN_REDIR_IN ||
+            tokens[i]->type == TOKEN_REDIR_OUT ||
             tokens[i]->type == TOKEN_REDIR_APPEND)
         {
             return create_op_node(tokens, start, i, end);
@@ -90,7 +90,11 @@ cmd_node *create_simple_cmd_node(Token **tokens, int start, int end)
     int num_args = end - start + 1;
     // We need space for all arguments + the NULL terminator
     node->argv = (char **)calloc(num_args + 1, sizeof(char *));
-
+    if (!node->argv)
+    {
+        perror("calloc : node->argv(char**)\n");
+        return NULL;
+    }
     int arg_index = 0;
 
     for (size_t i = start; i <= end; i++)
