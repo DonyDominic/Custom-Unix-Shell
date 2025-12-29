@@ -1,4 +1,4 @@
-# 🐚 Custom Bash Shell
+# 🐚 Custom Unix Shell
 
 A robust, modular Unix shell implementation in C. This project simulates a professional terminal environment, handling command-line parsing, process lifecycle management, and complex operator logic.
 
