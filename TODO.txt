@@ -1,0 +1,10 @@
+- alias
+- & operator
+- signals
+- env var
+
+optional
+- up-down cmd history
+- tab auto complete
+
+--------------------------------
