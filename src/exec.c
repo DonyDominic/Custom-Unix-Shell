@@ -1,12 +1,72 @@
 #include "terminal.h"
 
-
 int execute_simple_cmd(cmd_node *node);
 int execute_pipe(cmd_node *node);
 int execute_redirin(cmd_node *node);
 int execute_redirout(cmd_node *node);
 int execute_redirappend(cmd_node *node);
 int execute_tree(cmd_node *node);
+int is_builtin(char *cmd);
+int execute_builtin(cmd_node *node);
+
+/**
+ * @brief to check whether a command is buildin
+ * @param cmd command
+ * 
+ * @return 1 is true else 0
+ */
+int is_builtin(char *cmd)
+{
+    if (cmd == NULL)
+        return 0;
+    if (strcmp(cmd, "cd") == 0)
+        return 1;
+    if (strcmp(cmd, "exit") == 0)
+        return 1;
+    if (strcmp(cmd, "pwd") == 0)
+        return 1;
+    return 0;
+}
+
+/**
+ * @brief execute buildin command in the parent process
+ * @param node command node
+ * @return 0 on success , -1 on err
+ */
+int execute_builtin(cmd_node *node)
+{
+    if (strcmp(node->argv[0], "cd") == 0)
+    {
+        if (node->argv[1] == NULL)
+        {
+            fprintf(stderr, "cd: expected argument\n");
+        }
+        else
+        {
+            if (chdir(node->argv[1]) != 0)
+            {
+                perror("cd");
+            }
+        }
+        return 0;
+    }
+
+    if (strcmp(node->argv[0], "exit") == 0)
+    {
+        exit(0);
+    }
+
+    if (strcmp(node->argv[0], "pwd") == 0)
+    {
+        char cwd[1024];
+        if (getcwd(cwd, sizeof(cwd)) != NULL)
+        {
+            printf("%s\n", cwd);
+        }
+        return 0;
+    }
+    return -1;
+}
 
 /**
     @brief  execute an `simple cmd `
@@ -17,6 +77,16 @@ int execute_simple_cmd(cmd_node *node)
 {
     if (node == NULL)
         return 0;
+    else if (!node->argv || !node->argv[0])
+    {
+        return 0;
+    }
+
+    if (is_builtin(node->argv[0]))
+    {
+        return execute_builtin(node); // Runs in Parent, NO FORK
+    }
+
     __pid_t pid = fork();
     int status;
     // child
@@ -49,11 +119,18 @@ int execute_simple_cmd(cmd_node *node)
 /**
  * @brief Excecute pipe command
  * @param node the pipe node
- * 
+ *
  * @return 0 on success and -1 on err
  */
 int execute_pipe(cmd_node *node)
 {
+    if (!node)
+        return 0;
+    if (!node->left || !node->right)
+    {
+        perror("| : expected two cmds");
+        return -1;
+    }
     int pipe_fds[2];
     int status_l, status_r;
     if (pipe(pipe_fds) == -1)
@@ -77,8 +154,18 @@ int execute_pipe(cmd_node *node)
         }
         close(pipe_fds[0]);
         close(pipe_fds[1]);
-        status_l = execute_tree(node->left);
-        exit(status_l);
+        // Left Child
+        if (node->left->type == NODE_CMD)
+        {
+            execvp(node->left->argv[0], node->left->argv);
+            perror("execvp");
+            exit(-1);
+        }
+        else
+        {
+            status_l = execute_tree(node->left);
+            exit(status_l);
+        }
     }
 
     __pid_t pid_r = fork();
@@ -97,8 +184,19 @@ int execute_pipe(cmd_node *node)
         }
         close(pipe_fds[0]);
         close(pipe_fds[1]);
-        status_r = execute_tree(node->right);
-        exit(status_r);
+
+        // Right Child
+        if (node->right->type == NODE_CMD)
+        {
+            execvp(node->right->argv[0], node->right->argv);
+            perror("execvp");
+            exit(1);
+        }
+        else
+        {
+            status_r = execute_tree(node->right);
+            exit(status_r);
+        }
     }
 
     // parent
@@ -145,7 +243,13 @@ int execute_redirin(cmd_node *node)
             exit(-1);
         }
         close(fd);
-
+        if (node->left->type == NODE_CMD)
+        {
+            execvp(node->left->argv[0], node->left->argv);
+            // If we reach this line, execvp FAILED
+            perror(node->left->argv[0]);
+            exit(-1);
+        }
         exit(execute_tree(node->left));
     }
     else
@@ -189,6 +293,13 @@ int execute_redirout(cmd_node *node)
             exit(-1);
         }
         close(fd);
+        if (node->left->type == NODE_CMD)
+        {
+            execvp(node->left->argv[0], node->left->argv);
+            // If we reach this line, execvp FAILED
+            perror(node->left->argv[0]);
+            exit(-1);
+        }
         exit(execute_tree(node->left));
     }
     else
@@ -232,6 +343,13 @@ int execute_redirappend(cmd_node *node)
             exit(-1);
         }
         close(fd);
+        if (node->left->type == NODE_CMD)
+        {
+            execvp(node->left->argv[0], node->left->argv);
+            // If we reach this line, execvp FAILED
+            perror(node->left->argv[0]);
+            exit(-1);
+        }
         exit(execute_tree(node->left));
     }
     else
